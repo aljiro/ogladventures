@@ -1,24 +1,28 @@
 cmake_minimum_required (VERSION 2.6)
-project (Particles)
-add_executable(Particles particles.cpp)
+project (particles)
+add_executable(particles particles.cpp)
 
-add_subdirectory (lib)
+#add_subdirectory (lib)
 
 find_package(OpenGL REQUIRED)
+find_package(glfw3 3.3 REQUIRED)
+find_package(glm REQUIRED)
+find_package(glew REQUIRED)
 
 include_directories(
-	lib/glfw-3.1.2/include/
-	lib/glm-0.9.7.1/
-	lib/glew-1.13.0/include/
+	${GLFW_INCLUDE}
+	${GLM_INCLUDE}
+	${INCLUDE_INCLUDE}
 )
 
 set(ALL_LIBS
 	${OPENGL_LIBRARY}
 	glfw
-	GLEW_1130
+	${GLM_LIBRARY}
+	GLEW
 )
 
-target_link_libraries(Particles
+target_link_libraries(particles
 	${ALL_LIBS}
 )
 
