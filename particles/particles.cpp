@@ -9,6 +9,19 @@ GLFWwindow* window;
 #include <glm/glm.hpp>
 using namespace glm;
 
+typedef struct{
+	float m;
+	float *x;
+	float *v;
+	float *f;
+} *Particle;
+
+typedef struct{
+	Particle *p;
+	int n;
+	float t;
+} *ParticleSystem;
+
 int main( void )
 {
 	// Initialise GLFW
