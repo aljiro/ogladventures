@@ -1,8 +1,6 @@
 cmake_minimum_required (VERSION 2.6)
 project (particles)
-add_executable(particles particles.cpp)
-
-#add_subdirectory (lib)
+add_executable(particles particles.cpp triangles.cpp)
 
 find_package(OpenGL REQUIRED)
 find_package(glfw3 3.3 REQUIRED)
@@ -13,7 +11,10 @@ include_directories(
 	${GLFW_INCLUDE}
 	${GLM_INCLUDE}
 	${INCLUDE_INCLUDE}
+	"${PROJECT_SOURCE_DIR}/common"
 )
+
+add_subdirectory (common)
 
 set(ALL_LIBS
 	${OPENGL_LIBRARY}
@@ -24,5 +25,6 @@ set(ALL_LIBS
 
 target_link_libraries(particles
 	${ALL_LIBS}
+	Shaders
 )
 
