@@ -29,12 +29,20 @@ target_link_libraries(particles
 	Shaders
 )
 
-add_executable(triangles triangles/triangles.cpp)
+add_executable(triangles triangles/triangles.cpp triangles/SimpleVertexShader.vsh triangles/SimpleFragmentShader.fsh)
 
 target_link_libraries(triangles
 	${ALL_LIBS}
 	Shaders
 )
+
+add_custom_command( TARGET particles POST_BUILD 
+					COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/particles${CMAKE_EXECUTABLE_SUFFIX}"
+					"${CMAKE_CURRENT_SOURCE_DIR}/particles")
+
+add_custom_command( TARGET triangles POST_BUILD 
+					COMMAND ${CMAKE_COMMAND} -E copy "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/triangles${CMAKE_EXECUTABLE_SUFFIX}"
+					"${CMAKE_CURRENT_SOURCE_DIR}/triangles")
 
 
 
