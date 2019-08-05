@@ -8,11 +8,11 @@ Basic examples of opengl programming
 
 ## Building
 
-'''
+```
 mkdir build 
 cd build
 cmake ..
 make
-'''
+```
 
-Make sure you have 
+Make sure you have `/usr/local/lib` in your `LD_LIBRARY_PATH` variable
