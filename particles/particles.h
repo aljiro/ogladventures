@@ -14,9 +14,9 @@ using namespace glm;
 class Particle{
 public:
 	float m;
-	float x[3];
-	float v[3];
-	float f[3];
+	GLfloat x[3];
+	GLfloat v[3];
+	GLfloat f[3];
 	GLfloat life;
 
 	Particle():m(1.0f), life(0.0f){
@@ -33,6 +33,7 @@ public:
 };
 
 class ParticleSystem;
+
 class ForceObject{
 private:
 	ForceObject *nextObject;
@@ -42,22 +43,23 @@ public:
 	
 	void applyForce( ParticleSystem *ps );
 	// Abstract functions
-	virtual void apply( ParticleSystem *ps );
+	virtual void apply( ParticleSystem *ps ) = 0;
 };
 
 // Concrete force objects
-class GravityForce: ForceObject{
+class GravityForce: public ForceObject{
+public:
+	GravityForce( ForceObject *fo );
 	void apply( ParticleSystem *ps );
 
 };
 
-class DragForce: ForceObject{
+class DragForce: public ForceObject{
 private:
 	float kd;
 
 public:
 	DragForce( ForceObject *fo );
-
 	void apply( ParticleSystem *ps );
 };
 
@@ -85,7 +87,7 @@ public:
 
 	void reSpawn();
 
-	void computeForces(){;
+	void computeForces();
 
 	void derivative( float *dst );
 
@@ -96,28 +98,13 @@ class Solver{
 private:
 	float delta;
 public:
-	void scaleVector( ParticleSystem *ps, float *dst, float delta ){
-		for( int i = 0; i < ps->particleDims(); i++ ){
-			dst[i] *= delta;
-		}
-	}
+	Solver();
 
-	void add( ParticleSystem *ps, float *dst, float *state, float *target ){
-		for( int i = 0; i < ps->particleDims(); i++ ){
-			target[i] = state[i] + dst[i];
-		}
-	}
+	void scaleVector( ParticleSystem *ps, float *dst, float delta );
 
-	void step( ParticleSystem *ps ){
-		float *dst = (float*) malloc( ps->particleDims()*sizeof(float) );
-		float *state = (float*) malloc( ps->particleDims()*sizeof(float) );
-		ps->derivative( dst );
-		this->scaleVector( ps, dst, this->delta );
-		ps->getState( state );
-		this->add( ps, dst, state, state );
-		ps->setState( state );
-		ps->t += delta;
-	}
+	void add( ParticleSystem *ps, float *dst, float *state, float *target );
+
+	void step( ParticleSystem *ps );
 };
 
 // Simulation
@@ -128,15 +115,18 @@ private:
 	GLuint offsetId;
 	GLuint colorId;
 	GLuint VAO;
+	GLuint VBO;
 	ParticleSystem *ps;
 	int n;
 
 public:
 
 	Simulation( int n );
-	// Drawing routines
-	void init();
 
+	int init();
+
+	void setup();
+	// Drawing routines	
 
 	void draw( ParticleSystem *ps );
 

@@ -16,17 +16,19 @@ void ForceObject::applyForce( ParticleSystem *ps ){
 }
 
 // Concrete force objects
+GravityForce::GravityForce( ForceObject *fo ):ForceObject(fo){}
+
 void GravityForce::apply( ParticleSystem *ps ){
 	for( int i = 0; i < ps->n; i++ ){
-		ps[i]->p->f[0] = 0.0;
-		ps[i]->p->f[1] = 0.0;
-		ps[i]->p->f[2] = -10.0;
+		ps->particles[i]->f[0] = 0.0;
+		ps->particles[i]->f[1] = 0.0;
+		ps->particles[i]->f[2] = -10.0;
 	}	
 }
 
 
 DragForce::DragForce( ForceObject *fo ):ForceObject(fo){
-	this->kd = 0.01;
+	this->kd = 0.0;
 }
 
 void DragForce::apply( ParticleSystem *ps ){
@@ -40,7 +42,7 @@ void DragForce::apply( ParticleSystem *ps ){
 
 // Particle system
 ParticleSystem::ParticleSystem( int n ) : n(10){
-	fos = (ForceObject) new GravityForce( new DragForce(NULL) );
+	fos = (ForceObject *) new GravityForce( new DragForce(NULL) );
 	this->n = n;
 	t = 0.0;
 }
@@ -88,17 +90,23 @@ void ParticleSystem::clearParticles(){
 }
 
 void ParticleSystem::reSpawn(){
-	GLfloat offset;
+	GLfloat offsetx, offsety, offsetz;
 
 	for( int i = 0; i < this->n; i++ ){
 		Particle *p = this->particles[i];
 
 		if( p->life < 0.0f ){
-			offset = (rand() % 100 - 50.0)/10.0;
-			p->x[0] += offset;
-			p->x[1] += offset;
-			p->x[2] += offset;
-			p->v = {0.0, 0.0, 0.0};
+			offsetx = (rand() % 100 - 50.0)/100.0;
+			offsety = (rand() % 100 - 50.0)/100.0;
+			offsetz = (rand() % 100 - 50.0)/100.0;
+			p->x[0] = offsetx;
+			p->x[1] = offsety;
+			p->x[2] = offsetz;
+			p->v[0] = 0.0;
+			p->v[1] = 0.0;
+			p->v[2] = 0.0;
+			p->life = 1.0f;
+
 		}
 	}
 }
@@ -121,6 +129,10 @@ void ParticleSystem::derivative( float *dst ){
 	}
 }
 
+// Solver
+Solver::Solver(){
+	this->delta = 0.01;
+}
 
 void Solver::scaleVector( ParticleSystem *ps, float *dst, float delta ){
 	for( int i = 0; i < ps->particleDims(); i++ ){
@@ -142,16 +154,61 @@ void Solver::step( ParticleSystem *ps ){
 	ps->getState( state );
 	this->add( ps, dst, state, state );
 	ps->setState( state );
-	ps->t += delta;
+	ps->t += this->delta;
 }
 
 Simulation::Simulation( int n ){
 	this->n = n;
+	this->init();
+	this->setup();
 }
-// Drawing routines
-void Simulation::init(){
-	GLuint VBO;
 
+int Simulation::init(){
+	int width = 1024;
+	int height = 768;
+		// Initialise GLFW
+    if( !glfwInit() )
+    {
+        fprintf( stderr, "Failed to initialize GLFW\n" );
+        getchar();
+        return -1;
+    }
+
+    glfwWindowHint(GLFW_SAMPLES, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE); // To make MacOS happy; should not be needed
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    // Open a window and create its OpenGL context
+    this->window = glfwCreateWindow( width, height, "Playground", NULL, NULL);
+
+    if( this->window == NULL ){
+        fprintf( stderr, "Failed to open GLFW window. If you have an Intel GPU, they are not 3.3 compatible. Try the 2.1 version of the tutorials.\n" );
+        getchar();
+        glfwTerminate();
+        return -1;
+    }
+
+    glfwMakeContextCurrent(this->window);
+    glewExperimental = true; // Needed for core profile
+
+    // Initialize GLEW
+    if (glewInit() != GLEW_OK) {
+        fprintf(stderr, "Failed to initialize GLEW\n");
+        getchar();
+        glfwTerminate();
+        return -1;
+    }
+
+    glfwSetInputMode(this->window, GLFW_STICKY_KEYS, GL_TRUE);
+    glClearColor(0.0f, 0.3f, 0.4f, 0.0f);
+
+}
+
+// Drawing routines
+void Simulation::setup(){
+	cout << "Initializing the simulation" << endl;
 	// GLfloat particle_shape[]{
 	// 	0.0f, 1.0f, 0.0f, 1.0f,
 	//     1.0f, 0.0f, 1.0f, 0.0f,
@@ -172,34 +229,39 @@ void Simulation::init(){
 	    1.0f, 0.0f, 0.0f
 	};
 
-	glGenVertexArrays( 1, &this->VAO );
-	glGenBuffers( 1, &VBO );
-	glBindVertexArray( this->VAO );
-	glBindBuffer( GL_ARRAY_BUFFER, VBO );
+	cout << "Generating data for OpenGL" <<endl;
+	glGenVertexArrays( 1, &(this->VAO) );
+	glGenBuffers( 1, &this->VBO );	
+	glBindBuffer( GL_ARRAY_BUFFER, this->VBO );
 	glBufferData( GL_ARRAY_BUFFER, sizeof(particle_shape), particle_shape, GL_STATIC_DRAW );
-	glEnableVertexAttribArray( 0 );
+	glBindVertexArray( this->VAO );
+	
 	glVertexAttribPointer( 0, 3, GL_FLOAT, GL_FALSE, 3*sizeof(GLfloat), (void*)0 );
+	glEnableVertexAttribArray( 0 );
 
+	cout << "Loading the shaders" << endl;
 	// Loading shaders
 	this->shaderId = LoadShaders( "ParticlesVertexShader.vsh", "ParticlesFragmentShader.fsh" );
 	this->offsetId = glGetUniformLocation( this->shaderId, "offset");
 	this->colorId = glGetUniformLocation( this->shaderId, "color");
 
+	cout << "Initializing the particle system" << endl;
 	// Setting up the particle system
-	ps = new ParticleSystem( n );
+	ps = new ParticleSystem( this->n );
 	ps->init();
 }
 
 
 void Simulation::draw( ParticleSystem *ps ){
-	glBlendFunc( GL_SRC_ALPHA, GL_ONE );
+	//glBlendFunc( GL_SRC_ALPHA, GL_ONE );
 	glUseProgram( this->shaderId );
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-	vec4 color = vec4(1.0, 1.0, 0.0, 1.0);
+	GLfloat color[4] = {1.0f, 1.0f, 0.0f, 1.0f};
 
 	for( Particle *p : ps->particles ){
-		glUniform3fv( this->offsetId, p->x[0], p->x[1], p->x[2] );
-		glUniform4fv( this->colorId, 4, color );
+		cout << p->x[0] << endl;
+		glUniform3fv( this->offsetId, 1, p->x );
+		glUniform4fv( this->colorId, 1, color );
 		glBindVertexArray( this->VAO );
 		glDrawArrays( GL_TRIANGLES, 0, 6 );
 		glBindVertexArray(0);
@@ -207,16 +269,27 @@ void Simulation::draw( ParticleSystem *ps ){
 }
 
 int Simulation::run(){
+	cout << "Running the simulation" << endl;
 	bool running = true;
-	int n = 30;
 	
 	Solver s;
 
-	while( running ){
+	while( running && glfwWindowShouldClose(this->window) == 0 ){
 		ps->reSpawn();
 		s.step(ps);
 		draw( ps );
-	}
+
+		glfwSwapBuffers(this->window);
+        glfwPollEvents();
+    }
+
+	// Cleanup VBO and shader
+    glDeleteBuffers(1, &this->VBO );
+    glDeleteProgram(this->shaderId);
+    glDeleteVertexArrays(1, &this->VAO );
+
+    // Close OpenGL window and terminate GLFW
+    glfwTerminate();
 	
 	return 0;
 }
@@ -224,6 +297,7 @@ int Simulation::run(){
 // main
 
 int main( int c, char **args ){
-	Simulation s(100);
+
+	Simulation s(500);
 	s.run();
 }
