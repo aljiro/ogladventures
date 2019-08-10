@@ -12,7 +12,7 @@ ForceObject *ForceObject::next(){
 void ForceObject::applyForce( ParticleSystem *ps ){
 	this->apply( ps );
 
-	if( this->nextObject == NULL ) this->next()->applyForce( ps );
+	if( this->nextObject != NULL ) this->next()->applyForce( ps );
 }
 
 // Concrete force objects
@@ -20,29 +20,42 @@ GravityForce::GravityForce( ForceObject *fo ):ForceObject(fo){}
 
 void GravityForce::apply( ParticleSystem *ps ){
 	for( int i = 0; i < ps->n; i++ ){
-		ps->particles[i]->f[0] = 0.0;
-		ps->particles[i]->f[1] = 0.0;
-		ps->particles[i]->f[2] = -10.0;
+		ps->particles[i]->f[0] += 0.0;
+		ps->particles[i]->f[1] += -10.0;
+		ps->particles[i]->f[2] += 0.0;
 	}	
 }
 
 
 DragForce::DragForce( ForceObject *fo ):ForceObject(fo){
-	this->kd = 0.0;
+	this->kd = -2.5;
 }
 
 void DragForce::apply( ParticleSystem *ps ){
 	for( int i = 0; i < ps->n; i++ ){
 		Particle *p = ps->particles[i];
-		p->f[0] = this->kd*p->v[0];
-		p->f[1] = this->kd*p->v[1];
-		p->f[2] = this->kd*p->v[2];
+		p->f[0] += this->kd*p->v[0];
+		p->f[1] += this->kd*p->v[1];
+		p->f[2] += this->kd*p->v[2];
 	}	
 }
 
+// Potential
+PotentialForce::PotentialForce( ForceObject *fo ):ForceObject(fo){}
+
+void PotentialForce::apply( ParticleSystem *ps ){
+	for( int i = 0; i < ps->n; i++ ){
+		Particle *p = ps->particles[i];
+		p->f[0] += 10.0*sin(p->x[0]);
+		p->f[1] += 0.0;
+		p->f[2] += 0.0;
+	}	
+}
+
+
 // Particle system
 ParticleSystem::ParticleSystem( int n ) : n(10){
-	fos = (ForceObject *) new GravityForce( new DragForce(NULL) );
+	fos = (ForceObject *) new GravityForce( new DragForce( new PotentialForce(NULL)) );
 	this->n = n;
 	t = 0.0;
 }
@@ -91,21 +104,25 @@ void ParticleSystem::clearParticles(){
 
 void ParticleSystem::reSpawn(){
 	GLfloat offsetx, offsety, offsetz;
+	float sigma = 0.1;
+	float mu = 0.0;
+	auto gauss = [sigma, mu](auto y){return 0.1*(log(-log(1 - pow(y,0.0775)))-1.0821)/0.3807;};
+	auto f = [](auto y) {return (y - 50)/100.0;};
 
 	for( int i = 0; i < this->n; i++ ){
 		Particle *p = this->particles[i];
 
 		if( p->life < 0.0f ){
-			offsetx = (rand() % 100 - 50.0)/100.0;
-			offsety = (rand() % 100 - 50.0)/100.0;
-			offsetz = (rand() % 100 - 50.0)/100.0;
+			offsetx = f(rand() % 100);
+			offsety = f(rand() % 100);
+			offsetz = 0.0;
 			p->x[0] = offsetx;
 			p->x[1] = offsety;
 			p->x[2] = offsetz;
 			p->v[0] = 0.0;
 			p->v[1] = 0.0;
 			p->v[2] = 0.0;
-			p->life = 1.0f;
+			p->life = (rand()%100)/100.0;
 
 		}
 	}
@@ -253,19 +270,25 @@ void Simulation::setup(){
 
 
 void Simulation::draw( ParticleSystem *ps ){
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 	//glBlendFunc( GL_SRC_ALPHA, GL_ONE );
 	glUseProgram( this->shaderId );
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
-	GLfloat color[4] = {1.0f, 1.0f, 0.0f, 1.0f};
+	GLfloat color[4] = {1.0f, 0.0f, 0.0f, 1.0f};
 
 	for( Particle *p : ps->particles ){
-		cout << p->x[0] << endl;
+		color[3] = 1-sqrt((pow(p->x[0],2) + pow(p->x[1],2)));
+		color[1] = p->life/2.0;
+
 		glUniform3fv( this->offsetId, 1, p->x );
 		glUniform4fv( this->colorId, 1, color );
 		glBindVertexArray( this->VAO );
 		glDrawArrays( GL_TRIANGLES, 0, 6 );
 		glBindVertexArray(0);
 	}
+
+	
 }
 
 int Simulation::run(){
@@ -297,7 +320,13 @@ int Simulation::run(){
 // main
 
 int main( int c, char **args ){
+	int n;
 
-	Simulation s(500);
+	if( c == 2 )
+		n = atoi(args[1]);
+	else
+		n = 100;
+
+	Simulation s(n);
 	s.run();
 }

@@ -11,7 +11,7 @@ uniform vec4 color;
 
 void main(){
 
-	float scale = 0.01f;
+	float scale = 0.005f;
     gl_Position = vec4(vertex.xyz*scale + offset, 1.0);
     particleColor = color;
 }

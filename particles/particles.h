@@ -54,6 +54,12 @@ public:
 
 };
 
+class PotentialForce: public ForceObject{
+public:
+	PotentialForce( ForceObject *fo );
+	void apply( ParticleSystem *ps );
+};
+
 class DragForce: public ForceObject{
 private:
 	float kd;
